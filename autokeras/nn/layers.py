@@ -67,14 +67,15 @@ class StubDense(StubLayer):
 
 class StubConv(StubLayer):
 
-    def __init__(self, input_channel, filters, kernel_size, stride=1, padding=None, output_node=None, input_node=None):
+    def __init__(self, input_channel, filters, kernel_size, stride=1, padding=None, groups=None, output_node=None, input_node=None):
         super().__init__(input_node, output_node)
         self.input_channel = input_channel
         self.filters = filters
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding if padding is not None else int(self.kernel_size / 2)
-
+        self.groups = groups if groups is not None else 1
+        
     @property
     def output_shape(self):
         ret = list(self.input.shape[:-1])

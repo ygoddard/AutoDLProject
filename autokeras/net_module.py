@@ -6,7 +6,7 @@ from autokeras.constant import Constant
 from autokeras.search import BayesianSearcher, train
 
 from autokeras.utils import pickle_to_file, rand_temp_folder_generator, ensure_dir
-from autokeras.nn.generator import CnnGenerator, MlpGenerator, ResNetGenerator, DenseNetGenerator
+from autokeras.nn.generator import CnnGenerator, MlpGenerator, ResNetGenerator, DenseNetGenerator, MobileNetV2Generator
 
 
 class NetworkModule:
@@ -122,9 +122,10 @@ class CnnModule(NetworkModule):
     def __init__(self, loss, metric, searcher_args=None, path=None, verbose=False,
                  search_type=BayesianSearcher):
         super(CnnModule, self).__init__(loss, metric, searcher_args, path, verbose, search_type)
-        self.generators.append(CnnGenerator)
-        self.generators.append(ResNetGenerator)
-        self.generators.append(DenseNetGenerator)
+        #self.generators.append(CnnGenerator)
+        #self.generators.append(ResNetGenerator)
+        #self.generators.append(DenseNetGenerator)
+        self.generators.append(MobileNetV2Generator)
 
 
 class MlpModule(NetworkModule):

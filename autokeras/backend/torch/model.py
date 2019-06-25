@@ -136,8 +136,9 @@ def to_real_layer(stub_layer):
                                stub_layer.filters,
                                stub_layer.kernel_size,
                                stride=stub_layer.stride,
-                               padding=stub_layer.padding)
-
+                               padding=stub_layer.padding,
+                               groups= stub_layer.groups)
+    
     elif isinstance(stub_layer, StubConv3d):
         return torch.nn.Conv3d(stub_layer.input_channel,
                                stub_layer.filters,

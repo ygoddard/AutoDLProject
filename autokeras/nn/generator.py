@@ -302,3 +302,125 @@ class DenseNetGenerator(NetworkGenerator):
         out = graph.add_layer(self.conv(num_input_features, num_output_features, kernel_size=1, stride=1), out)
         out = graph.add_layer(self.avg_pooling(kernel_size=2, stride=2), out)
         return out
+    
+       
+class MobileNetV2Generator(NetworkGenerator):
+     #Generate MobileNetV2 according to:
+     #  https://github.com/kuangliu/pytorch-cifar/blob/master/models/mobilenetv2.py
+    def __init__(self, n_output_node, input_shape):
+        super(MobileNetV2Generator, self).__init__(n_output_node, input_shape)
+          
+        """ configuration for complete net:
+        self.cfg = [(1,  16, 1, 1),
+           (6,  24, 2, 1) ,  # NOTE: change stride 2 -> 1 for CIFAR10
+           (6,  32, 3, 2),
+           (6,  64, 4, 2),
+           (6,  96, 3, 1),
+           (6, 160, 3, 2),
+           (6, 320, 1, 1)]
+        """
+        
+        # we try smaller net configuration (so autokeras will be able to expand the net)
+        self.cfg = [(1,  16, 1, 1),
+           (6,  24, 2, 1)] # ,  # NOTE: change stride 2 -> 1 for CIFAR10
+           #(6,  32, 3, 2) ,
+           #(6,  64, 4, 2),
+           #(6,  96, 3, 1),
+           #(6, 160, 3, 2),
+           #(6, 320, 1, 1)]
+        
+        self.in_planes = 32
+        self.block_expansion = 1
+        self.n_dim = len(self.input_shape) - 1
+        
+        if len(self.input_shape) > 4:
+            raise ValueError('The input dimension is too high.')
+        elif len(self.input_shape) < 2:
+            raise ValueError('The input dimension is too low.')
+        self.conv = get_conv_class(self.n_dim)
+        self.dropout = get_dropout_class(self.n_dim)
+        self.global_avg_pooling = get_global_avg_pooling_class(self.n_dim)
+        self.adaptive_avg_pooling = get_global_avg_pooling_class(self.n_dim)
+        self.batch_norm = get_batch_norm_class(self.n_dim)
+
+    def generate(self, model_len=None, model_width=None):
+                
+        graph = Graph(self.input_shape, False)
+        temp_input_channel = self.input_shape[-1]
+        output_node_id = 0
+        
+        #out_planes = self.in_planes*self.n_output_node
+        out_planes = 24
+        
+        output_node_id = graph.add_layer(self.conv(temp_input_channel,
+                                                       self.in_planes,
+                                                       kernel_size=3,
+                                                       stride=1,
+                                                       padding=1), output_node_id)
+        output_node_id = graph.add_layer(self.batch_norm(graph.node_list[output_node_id].shape[-1]), output_node_id)
+        output_node_id = graph.add_layer(StubReLU(), output_node_id)
+       
+        output_node_id = self._make_layer(graph, output_node_id)
+
+       
+        output_node_id = graph.add_layer(self.conv(out_planes,
+                                                       out_planes*4,
+                                                       kernel_size=1,
+                                                       stride=1,
+                                                       padding=0), output_node_id)
+        output_node_id = graph.add_layer(self.batch_norm(graph.node_list[output_node_id].shape[-1]), output_node_id)
+        output_node_id = graph.add_layer(StubReLU(), output_node_id)
+        
+        output_node_id = graph.add_layer(self.global_avg_pooling(), output_node_id)
+        graph.add_layer(StubDense(out_planes*4, self.n_output_node), output_node_id)
+        return graph
+
+    def _make_layer(self, graph, node_id):        
+        
+        out = node_id       
+        for expansion, out_planes, num_blocks, stride in self.cfg:
+            strides = [stride] + [1]*(num_blocks-1)
+            for stride in strides:
+                out =self._make_block(graph,self.in_planes, out_planes, expansion, out, stride)
+                self.in_planes = out_planes
+        return out
+
+    def _make_block(self, graph, in_planes, out_planes, expansion, node_id, stride):   
+       
+        planes = expansion * in_planes
+        output_node_id = graph.add_layer(self.conv(in_planes,
+                                                       planes,
+                                                       kernel_size=1,
+                                                       stride=1,
+                                                       padding=0), node_id)
+        output_node_id = graph.add_layer(self.batch_norm(graph.node_list[output_node_id].shape[-1]), output_node_id)
+        output_node_id = graph.add_layer(StubReLU(), output_node_id)
+        
+        output_node_id = graph.add_layer(self.conv(planes,
+                                                       planes,
+                                                       kernel_size=3,
+                                                       stride=stride,
+                                                       padding=1,
+                                                       groups=planes), output_node_id)
+        output_node_id = graph.add_layer(self.batch_norm(graph.node_list[output_node_id].shape[-1]), output_node_id)
+        output_node_id = graph.add_layer(StubReLU(), output_node_id)
+        
+        output_node_id = graph.add_layer(self.conv(planes,
+                                                       out_planes,
+                                                       kernel_size=1,
+                                                       stride=1,
+                                                       padding=0), output_node_id)
+        output_node_id = graph.add_layer(self.batch_norm(graph.node_list[output_node_id].shape[-1]), output_node_id)
+        
+        if stride == 1 and in_planes != out_planes:
+            shortcut_node_id = node_id
+            shortcut_node_id = graph.add_layer(self.conv(in_planes,
+                                                       out_planes,
+                                                       kernel_size=1,
+                                                       stride=1,
+                                                       padding=0), shortcut_node_id)
+            shortcut_node_id = graph.add_layer(self.batch_norm(graph.node_list[shortcut_node_id].shape[-1]), shortcut_node_id)
+            output_node_id = graph.add_layer(StubAdd(), (output_node_id, shortcut_node_id))
+       
+        return output_node_id
+
