@@ -36,7 +36,9 @@ def wider_pre_conv(layer, n_add_filters, weighted=True):
         return get_conv_class(n_dim)(layer.input_channel,
                                      layer.filters + n_add_filters,
                                      kernel_size=layer.kernel_size,
-                                     stride=layer.stride)
+                                     stride=layer.stride,
+                                     padding =layer.padding,
+                                     groups=layer.groups)
 
     n_pre_filters = layer.filters
     rand = np.random.randint(n_pre_filters, size=n_add_filters)
@@ -54,33 +56,43 @@ def wider_pre_conv(layer, n_add_filters, weighted=True):
     new_pre_layer = get_conv_class(n_dim)(layer.input_channel,
                                           n_pre_filters + n_add_filters,
                                           kernel_size=layer.kernel_size,
-                                          stride=layer.stride)
+                                          stride=layer.stride,
+                                          padding =layer.padding,
+                                          groups=layer.groups)
     new_pre_layer.set_weights((add_noise(student_w, teacher_w), add_noise(student_b, teacher_b)))
     return new_pre_layer
 
 
 def wider_next_conv(layer, start_dim, total_dim, n_add, weighted=True):
     n_dim = get_n_dim(layer)
+    groups = layer.groups + n_add if layer.groups is not None and layer.groups > 1 else 1
     if not weighted:
         return get_conv_class(n_dim)(layer.input_channel + n_add,
                                      layer.filters,
                                      kernel_size=layer.kernel_size,
-                                     stride=layer.stride)
+                                     stride=layer.stride,
+                                     padding =layer.padding,
+                                     groups =groups)
     n_filters = layer.filters
-    teacher_w, teacher_b = layer.get_weights()
-
-    new_weight_shape = list(teacher_w.shape)
-    new_weight_shape[1] = n_add
-    new_weight = np.zeros(tuple(new_weight_shape))
-
-    student_w = np.concatenate((teacher_w[:, :start_dim, ...].copy(),
-                                add_noise(new_weight, teacher_w),
-                                teacher_w[:, start_dim:total_dim, ...].copy()), axis=1)
     new_layer = get_conv_class(n_dim)(layer.input_channel + n_add,
                                       n_filters,
                                       kernel_size=layer.kernel_size,
-                                      stride=layer.stride)
-    new_layer.set_weights((student_w, teacher_b))
+                                      stride=layer.stride,
+                                      padding =layer.padding,
+                                      groups =groups)
+    teacher_w, teacher_b = layer.get_weights()
+
+    if layer.groups is not None and layer.groups > 1:
+        new_layer.set_weights((teacher_w, teacher_b))
+    else:
+        new_weight_shape = list(teacher_w.shape)
+        new_weight_shape[1] = n_add
+        new_weight = np.zeros(tuple(new_weight_shape))
+        student_w = np.concatenate((teacher_w[:, :start_dim, ...].copy(),
+                                add_noise(new_weight, teacher_w),
+                                teacher_w[:, start_dim:total_dim, ...].copy()), axis=1)
+        new_layer.set_weights((student_w, teacher_b))
+        
     return new_layer
 
 
