@@ -14,7 +14,7 @@ from autokeras.backend import Backend
 from autokeras.bayesian import BayesianOptimizer
 from autokeras.constant import Constant
 from autokeras.utils import pickle_to_file, pickle_from_file, verbose_print, get_system
-
+from autokeras.nn.layers import is_layer, LayerType
 
 class Searcher(ABC):
     """The base class to search for neural architectures.
@@ -118,6 +118,7 @@ class Searcher(ABC):
         """Call the generators to generate the initial architectures for the search."""
         if self.verbose:
             print('\nInitializing search.')
+            print('\nlocal code.')
         for generator in self.generators:
             graph = generator(self.n_classes, self.input_shape). \
                 generate(self.default_model_len, self.default_model_width)
@@ -156,6 +157,19 @@ class Searcher(ABC):
             print('+' + '-' * 46 + '+')
             print('|' + 'Training model {}'.format(model_id).center(46) + '|')
             print('+' + '-' * 46 + '+')
+        #for i in range(len(graph.layer_list)):
+        #    layer=graph.layer_list[i]            
+        #    if is_layer(layer, LayerType.CONV):
+        #        if graph.weighted:
+        #            teacher_w, teacher_b = layer.get_weights()
+        #            teacher_w = teacher_w.shape
+        #            teacher_b = teacher_b.shape
+        #        else:
+        #            teacher_w = 0
+        #            teacher_b = 0
+        #        print("layer_id:{}, input_channel:{}, filters:{}, groups:{}, teacher_w:{}, teacher_b: {}".format(i,layer.input_channel,layer.filters,layer.groups,teacher_w, teacher_b))
+        #model = graph.produce_model()
+        #print(model)
         # Temporary solution to support GOOGLE Colab
         if get_system() == Constant.SYS_GOOGLE_COLAB:
             # When using Google Colab, use single process for searching and training.

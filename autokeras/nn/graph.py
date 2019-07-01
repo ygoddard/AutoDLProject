@@ -302,6 +302,9 @@ class Graph:
             total_dim: The total number of dimensions the layer has before widening.
             n_add: The number of dimensions to add.
         """
+        is_exist = True if (u, start_dim, total_dim, n_add) in self.vis else False
+        #with open("log.txt", "a") as resfile:
+        #    resfile.write("start_node_id:{},start_dim:{},total_dim:{},n_add:{},is_exist:{}\n".format(u, start_dim, total_dim, n_add,is_exist))
         if (u, start_dim, total_dim, n_add) in self.vis:
             return
         self.vis[(u, start_dim, total_dim, n_add)] = True
@@ -311,7 +314,9 @@ class Graph:
             if is_layer(layer, LayerType.CONV):
                 new_layer = wider_next_conv(layer, start_dim, total_dim, n_add, self.weighted)
                 self._replace_layer(layer_id, new_layer)
-
+                if layer.groups > 1 :          
+                    self._search(v, start_dim, total_dim, n_add)
+                    
             elif is_layer(layer, LayerType.DENSE):
                 new_layer = wider_next_dense(layer, start_dim, total_dim, n_add, self.weighted)
                 self._replace_layer(layer_id, new_layer)
@@ -341,6 +346,9 @@ class Graph:
             if is_layer(layer, LayerType.CONV):
                 new_layer = wider_pre_conv(layer, n_add, self.weighted)
                 self._replace_layer(layer_id, new_layer)
+                if layer.groups > 1 :                               
+                    self._search(v, start_dim, total_dim, n_add)
+               
             elif is_layer(layer, LayerType.DENSE):
                 new_layer = wider_pre_dense(layer, n_add, self.weighted)
                 self._replace_layer(layer_id, new_layer)
@@ -394,6 +402,8 @@ class Graph:
         output_id = self.layer_id_to_output_node_ids[pre_layer_id][0]
         dim = layer_width(pre_layer)
         self.vis = {}
+        #with open("log.txt", "a") as resfile:
+        #    resfile.write("to_wider_model:{} {}\n\n\n".format(pre_layer_id,n_add))
         self._search(output_id, dim, dim, n_add)
         # Update the tensor shapes.
         for u in self.topological_order:
