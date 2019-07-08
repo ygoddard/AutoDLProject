@@ -386,7 +386,11 @@ class Graph:
             elif is_layer(new_layer, LayerType.CONV):
                 init_conv_weight(new_layer)
             elif is_layer(new_layer, LayerType.BATCH_NORM):
-                init_bn_weight(new_layer)
+                init_bn_weight(new_layer
+			elif is_layer(new_layer, LayerType.DROPOUT):
+                init_dropout_weight(new_layer)
+			elif is_layer(new_layer, LayerType.POOL):
+                init_pool_weight(new_layer)
 
         self._insert_new_layers([new_layer], input_id, output_id)
 
